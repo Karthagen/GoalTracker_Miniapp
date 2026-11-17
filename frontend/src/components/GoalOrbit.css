@@ -94,6 +94,7 @@
   inset: 0;
   overflow: visible;
   pointer-events: none;
+  z-index: 1;
 }
 .orbit-guide {
   fill: none;
@@ -219,6 +220,7 @@
   padding: 0;
   z-index: 3;
   text-align: center;
+  z-index: 10;
 }
 .satellite-disc {
   width: 100%;
@@ -284,6 +286,24 @@
   transform: translateX(-50%);
   width: 170px;
   cursor: pointer;
+
+  background: linear-gradient(
+    135deg, 
+    rgba(252, 253, 249, 0.4) 0%, 
+    rgba(244, 248, 238, 0.1) 100%
+  );
+  
+  padding: 6px 10px;
+  border-radius: 10px;
+  
+  border: 1px solid rgba(255, 255, 255, 0.9); 
+  border-bottom: 1px solid rgba(200, 210, 190, 0.4);
+  
+  box-shadow: 
+    0 4px 12px rgba(95, 116, 59, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 1);
+    
+  z-index: 50;         
 }
 .satellite-caption strong {
   display: -webkit-box;
@@ -581,6 +601,16 @@
   .satellite-caption {
     width: 99px;
     top: calc(100% + 8px);
+
+    background: linear-gradient(
+      135deg, 
+      rgba(252, 253, 249, 0.6) 0%, 
+      rgba(244, 248, 238, 0.3) 100%
+    );
+    padding: 4px 6px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 2px 8px rgba(95, 116, 59, 0.06);
   }
   .satellite-caption strong {
     font-size: 10px;

@@ -1,3 +1,4 @@
+import { motion } from "framer-motion";
 import Icon from "../icons";
 import { activeSubs, dayProgress } from "../tracker";
 import "./GoalOrbit.css";
@@ -9,10 +10,11 @@ export default function GoalOrbit({ goal, day, today, onToggle, t }) {
   const expanded = subs.length > 6;
   const nodes = subs.map((sub, i) => {
     const angle = (i * Math.PI * 2) / subs.length - Math.PI / 2;
+    const yOffset = i === 0 ? -3 : 0; 
     return {
       ...sub,
       x: 50 + 35 * Math.cos(angle),
-      y: 50 + 37 * Math.sin(angle),
+      y: 50 + 37 * Math.sin(angle) + yOffset,
       checked: done.has(sub.id),
     };
   });
@@ -49,11 +51,14 @@ export default function GoalOrbit({ goal, day, today, onToggle, t }) {
               : undefined
           }
         >
-          <svg
+          <motion.svg
             className="orbit-connections"
             width="100%"
             height="100%"
             aria-hidden="true"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 1, delay: 0.4 }}
           >
             <ellipse
               className="orbit-guide"
@@ -81,10 +86,15 @@ export default function GoalOrbit({ goal, day, today, onToggle, t }) {
                 )}
               </g>
             ))}
-          </svg>
-          <div
+          </motion.svg>
+
+          {/* ИСПРАВЛЕНО: Добавлены x: "-50%" и y: "-50%" для сохранения центрирования */}
+          <motion.div
             className="orbit-center"
             aria-label={`${goal.mainGoal}. ${t("Прогресс дня", "Daily progress")}: ${progress.percent}%`}
+            initial={{ scale: 0, opacity: 0, x: "-50%", y: "-50%" }}
+            animate={{ scale: 1, opacity: 1, x: "-50%", y: "-50%" }}
+            transition={{ type: "spring", stiffness: 200, damping: 20 }}
           >
             <svg
               viewBox="0 0 240 240"
@@ -102,7 +112,13 @@ export default function GoalOrbit({ goal, day, today, onToggle, t }) {
                 transform="rotate(-90 120 120)"
               />
             </svg>
-            <div className="center-copy">
+            
+            <motion.div 
+              className="center-copy"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+            >
               <span className="center-eyebrow">
                 {t("ГЛАВНАЯ ЦЕЛЬ", "MAIN GOAL")}
               </span>
@@ -116,15 +132,16 @@ export default function GoalOrbit({ goal, day, today, onToggle, t }) {
                   ? t("за сегодня", "today")
                   : t("за этот день", "this day")}
               </span>
-            </div>
+            </motion.div>
             {progress.percent === 100 && (
               <span className="center-complete-badge">
                 <Icon name="check" size={17} />
               </span>
             )}
-          </div>
-          {nodes.map((node) => (
-            <button
+          </motion.div>
+
+          {nodes.map((node, index) => (
+            <motion.button
               key={node.id}
               type="button"
               className={`orbit-satellite ${node.checked ? "completed" : ""}`}
@@ -138,6 +155,14 @@ export default function GoalOrbit({ goal, day, today, onToggle, t }) {
               title={`${node.label}${node.note ? ` · ${node.note}` : ""}`}
               onClick={() => onToggle(node.id)}
               disabled={day > today}
+              initial={{ scale: 0, opacity: 0, rotate: -90, x: "-50%", y: "-50%" }}
+              animate={{ scale: 1, opacity: 1, rotate: 0, x: "-50%", y: "-50%" }}
+              transition={{
+                delay: 0.5 + index * 0.1,
+                type: "spring",
+                stiffness: 260,
+                damping: 18,
+              }}
             >
               <span className="satellite-disc">
                 <Icon name={node.icon} size={29} />
@@ -150,11 +175,17 @@ export default function GoalOrbit({ goal, day, today, onToggle, t }) {
                   <Icon name={node.checked ? "check" : "plus"} size={14} />
                 </span>
               </span>
-              <span className="satellite-caption">
+
+              <motion.span 
+                className="satellite-caption"
+                initial={{ opacity: 0, y: 5, x: "-50%" }}
+                animate={{ opacity: 1, y: 0, x: "-50%" }}
+                transition={{ duration: 0.3, delay: 0.7 + index * 0.1 }}
+              >
                 <strong>{node.label}</strong>
                 <small>{node.note}</small>
-              </span>
-            </button>
+              </motion.span>
+            </motion.button>
           ))}
         </div>
       </div>

@@ -83,6 +83,22 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
     setSubs((items) =>
       items.map((s) => (s.id === id ? { ...s, [field]: value } : s)),
     );
+
+  // Стиль для счетчика символов
+  const counterStyle = (len, max) => ({
+    position: "absolute",
+    right: "10px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    fontSize: "10px",
+    color: len >= max - 5 ? "#d9534f" : "#9CA3AF", // Краснеет, если осталось мало места
+    pointerEvents: "none",
+    background: "rgba(255, 255, 255, 0.8)",
+    padding: "2px 6px",
+    borderRadius: "4px",
+    fontWeight: "500"
+  });
+
   function submit(e) {
     e.preventDefault();
     const valid = subs
@@ -122,17 +138,24 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
       <form onSubmit={submit} className="goal-form">
         <label>
           {t("Моя главная цель", "My main goal")}
-          <input
-            autoFocus
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={100}
-            placeholder={t(
-              "Например, чувствовать себя энергичнее",
-              "For example, feel more energetic",
-            )}
-            required
-          />
+          {/* Обертка для счетчика */}
+          <div style={{ position: "relative" }}>
+            <input
+              autoFocus
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={40} /* <--- ОГРАНИЧЕНИЕ ГЛАВНОЙ ЦЕЛИ */
+              placeholder={t(
+                "Например, чувствовать себя энергичнее",
+                "For example, feel more energetic",
+              )}
+              required
+              style={{ width: "100%", paddingRight: "50px" }} /* Место под счетчик */
+            />
+            <span style={counterStyle(name.length, 40)}>
+              {name.length}/40
+            </span>
+          </div>
         </label>
         <label>
           {t("Почему это важно для меня", "Why this matters to me")}
@@ -174,24 +197,39 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
                 />
               </label>
               <div>
-                <input
-                  aria-label={`${t("Подцель", "Daily step")} ${i + 1}`}
-                  placeholder={t("Что вы будете делать?", "What will you do?")}
-                  maxLength={80}
-                  value={s.label}
-                  onChange={(e) => update(s.id, "label", e.target.value)}
-                />
-                <input
-                  className="note-input"
-                  aria-label={`${t("Подробности", "Details")} ${i + 1}`}
-                  placeholder={t(
-                    "Например, 20 минут каждый день",
-                    "For example, 20 minutes every day",
-                  )}
-                  maxLength={90}
-                  value={s.note}
-                  onChange={(e) => update(s.id, "note", e.target.value)}
-                />
+                {/* Обертка для названия подцели */}
+                <div style={{ position: "relative", marginBottom: "4px" }}>
+                  <input
+                    aria-label={`${t("Подцель", "Daily step")} ${i + 1}`}
+                    placeholder={t("Что вы будете делать?", "What will you do?")}
+                    maxLength={25} /* <--- ОГРАНИЧЕНИЕ ПОДЦЕЛИ */
+                    value={s.label}
+                    onChange={(e) => update(s.id, "label", e.target.value)}
+                    style={{ width: "100%", paddingRight: "45px" }}
+                  />
+                  <span style={counterStyle(s.label.length, 25)}>
+                    {s.label.length}/25
+                  </span>
+                </div>
+                
+                {/* Обертка для заметки подцели */}
+                <div style={{ position: "relative" }}>
+                  <input
+                    className="note-input"
+                    aria-label={`${t("Подробности", "Details")} ${i + 1}`}
+                    placeholder={t(
+                      "Например, 20 минут каждый день",
+                      "For example, 20 minutes every day",
+                    )}
+                    maxLength={45} /* <--- ОГРАНИЧЕНИЕ ЗАМЕТКИ */
+                    value={s.note}
+                    onChange={(e) => update(s.id, "note", e.target.value)}
+                    style={{ width: "100%", paddingRight: "45px" }}
+                  />
+                  <span style={counterStyle(s.note.length, 45)}>
+                    {s.note.length}/45
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
