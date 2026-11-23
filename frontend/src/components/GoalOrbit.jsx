@@ -176,8 +176,8 @@ export default function GoalOrbit({ goal, day, today, onToggle, t }) {
                 </span>
               </span>
 
-              <motion.span 
-                className="satellite-caption"
+              <motion.span
+                className={`satellite-caption ${node.y <= 50 && Math.abs(node.x - 50) > 8 ? "caption-above" : ""}`}
                 initial={{ opacity: 0, y: 5, x: "-50%" }}
                 animate={{ opacity: 1, y: 0, x: "-50%" }}
                 transition={{ duration: 0.3, delay: 0.7 + index * 0.1 }}

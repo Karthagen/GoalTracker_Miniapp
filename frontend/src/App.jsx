@@ -14,9 +14,17 @@ import {
   toggleDay,
   statistics,
   loadData,
+  migrateSingleGoal,
   saveSingleGoal,
   demoGoal,
 } from "./tracker";
+import {
+  getTelegramInitData,
+  loadRemoteState,
+  saveRemoteState,
+} from "./sync";
+
+const MAX_SUBGOALS = 6;
 
 function Dialog({ title, close, children, wide = false }) {
   const ref = useRef(null);
@@ -68,7 +76,10 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
   const [description, setDescription] = useState(goal?.description || "");
   const [subs, setSubs] = useState(() =>
     goal
-      ? activeSubs(goal, today)
+      ? activeSubs(goal, today).map((sub) => ({
+          ...sub,
+          note: (sub.note || "").slice(0, 25),
+        }))
       : [0, 1, 2].map((i) => ({
           id: crypto.randomUUID(),
           label: "",
@@ -84,31 +95,46 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
       items.map((s) => (s.id === id ? { ...s, [field]: value } : s)),
     );
 
-  // Стиль для счетчика символов
-  const counterStyle = (len, max) => ({
-    position: "absolute",
-    right: "10px",
-    top: "50%",
-    transform: "translateY(-50%)",
-    fontSize: "10px",
-    color: len >= max - 5 ? "#d9534f" : "#9CA3AF", // Краснеет, если осталось мало места
-    pointerEvents: "none",
-    background: "rgba(255, 255, 255, 0.8)",
-    padding: "2px 6px",
-    borderRadius: "4px",
-    fontWeight: "500"
-  });
+  function addSubgoal() {
+    setSubs((items) => {
+      if (items.length >= MAX_SUBGOALS) return items;
+      return [
+        ...items,
+        {
+          id: crypto.randomUUID(),
+          label: "",
+          note: "",
+          color: COLORS[items.length % COLORS.length],
+          icon: ["walk", "book", "water", "sun", "moon"][items.length % 5],
+          createdAt: today,
+        },
+      ];
+    });
+  }
 
   function submit(e) {
     e.preventDefault();
     const valid = subs
       .filter((s) => s.label.trim())
-      .map((s) => ({ ...s, label: s.label.trim(), note: s.note.trim() }));
+      .map((s) => ({
+        ...s,
+        label: s.label.trim(),
+        note: s.note.trim().slice(0, 25),
+      }));
     if (!name.trim() || !valid.length) {
       setError(
         t(
           "Назовите цель и добавьте хотя бы одну подцель.",
           "Name your goal and add at least one daily step.",
+        ),
+      );
+      return;
+    }
+    if (valid.length > MAX_SUBGOALS) {
+      setError(
+        t(
+          `Можно добавить не больше ${MAX_SUBGOALS} подцелей.`,
+          `You can add up to ${MAX_SUBGOALS} daily steps.`,
         ),
       );
       return;
@@ -136,39 +162,45 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
       wide
     >
       <form onSubmit={submit} className="goal-form">
-        <label>
+        <label className="form-field">
           {t("Моя главная цель", "My main goal")}
-          {/* Обертка для счетчика */}
-          <div style={{ position: "relative" }}>
+          <div className="input-with-counter">
             <input
-              autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              maxLength={40} /* <--- ОГРАНИЧЕНИЕ ГЛАВНОЙ ЦЕЛИ */
+              maxLength={40}
               placeholder={t(
                 "Например, чувствовать себя энергичнее",
                 "For example, feel more energetic",
               )}
               required
-              style={{ width: "100%", paddingRight: "50px" }} /* Место под счетчик */
             />
-            <span style={counterStyle(name.length, 40)}>
+            <span
+              className={`character-counter ${name.length >= 35 ? "near-limit" : ""}`}
+            >
               {name.length}/40
             </span>
           </div>
         </label>
-        <label>
+        <label className="form-field">
           {t("Почему это важно для меня", "Why this matters to me")}
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={240}
-            rows={2}
-            placeholder={t(
-              "Пара слов, которые будут вдохновлять",
-              "A few words to keep you inspired",
-            )}
-          />
+          <div className="input-with-counter textarea-counter">
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              maxLength={240}
+              rows={3}
+              placeholder={t(
+                "Пара слов, которые будут вдохновлять",
+                "A few words to keep you inspired",
+              )}
+            />
+            <span
+              className={`character-counter ${description.length >= 220 ? "near-limit" : ""}`}
+            >
+              {description.length}/240
+            </span>
+          </div>
         </label>
         <div className="form-divider">
           <h3>{t("Маленькие ежедневные шаги", "Small daily steps")}</h3>
@@ -182,91 +214,100 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
         <div className="form-subgoals">
           {subs.map((s, i) => (
             <div className="sub-form" key={s.id}>
-              <label
-                className="color-input"
-                title={t("Цвет подцели", "Step color")}
-              >
-                <span style={{ background: s.color }}>
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <input
-                  type="color"
-                  aria-label={`${t("Цвет подцели", "Step color")} ${i + 1}`}
-                  value={s.color}
-                  onChange={(e) => update(s.id, "color", e.target.value)}
-                />
-              </label>
-              <div>
-                {/* Обертка для названия подцели */}
-                <div style={{ position: "relative", marginBottom: "4px" }}>
-                  <input
-                    aria-label={`${t("Подцель", "Daily step")} ${i + 1}`}
-                    placeholder={t("Что вы будете делать?", "What will you do?")}
-                    maxLength={25} /* <--- ОГРАНИЧЕНИЕ ПОДЦЕЛИ */
-                    value={s.label}
-                    onChange={(e) => update(s.id, "label", e.target.value)}
-                    style={{ width: "100%", paddingRight: "45px" }}
-                  />
-                  <span style={counterStyle(s.label.length, 25)}>
-                    {s.label.length}/25
-                  </span>
+              <div className="sub-form-heading">
+                <div className="sub-form-title">
+                  <label
+                    className="color-input"
+                    title={t("Цвет подцели", "Step color")}
+                  >
+                    <span style={{ background: s.color }}>
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                    <input
+                      type="color"
+                      aria-label={`${t("Цвет подцели", "Step color")} ${i + 1}`}
+                      value={s.color}
+                      onChange={(e) => update(s.id, "color", e.target.value)}
+                    />
+                  </label>
+                  <strong>
+                    {t(`Ежедневный шаг ${i + 1}`, `Daily step ${i + 1}`)}
+                  </strong>
                 </div>
-                
-                {/* Обертка для заметки подцели */}
-                <div style={{ position: "relative" }}>
-                  <input
-                    className="note-input"
-                    aria-label={`${t("Подробности", "Details")} ${i + 1}`}
-                    placeholder={t(
-                      "Например, 20 минут каждый день",
-                      "For example, 20 minutes every day",
-                    )}
-                    maxLength={45} /* <--- ОГРАНИЧЕНИЕ ЗАМЕТКИ */
-                    value={s.note}
-                    onChange={(e) => update(s.id, "note", e.target.value)}
-                    style={{ width: "100%", paddingRight: "45px" }}
-                  />
-                  <span style={counterStyle(s.note.length, 45)}>
-                    {s.note.length}/45
-                  </span>
-                </div>
+                <button
+                  type="button"
+                  className="icon-button remove-subgoal"
+                  aria-label={`${t("Убрать подцель", "Remove step")} ${i + 1}`}
+                  disabled={subs.length === 1}
+                  onClick={() =>
+                    setSubs((items) => items.filter((x) => x.id !== s.id))
+                  }
+                >
+                  <Icon name="close" size={17} />
+                </button>
               </div>
-              <button
-                type="button"
-                className="icon-button"
-                aria-label={`${t("Убрать подцель", "Remove step")} ${i + 1}`}
-                disabled={subs.length === 1}
-                onClick={() =>
-                  setSubs((items) => items.filter((x) => x.id !== s.id))
-                }
-              >
-                <Icon name="close" size={17} />
-              </button>
+              <div className="sub-form-fields">
+                <label>
+                  <span>{t("Что сделать", "What to do")}</span>
+                  <div className="input-with-counter">
+                    <input
+                      aria-label={`${t("Подцель", "Daily step")} ${i + 1}`}
+                      placeholder={t(
+                        "Что вы будете делать?",
+                        "What will you do?",
+                      )}
+                      maxLength={25}
+                      value={s.label}
+                      onChange={(e) => update(s.id, "label", e.target.value)}
+                    />
+                    <span
+                      className={`character-counter ${s.label.length >= 20 ? "near-limit" : ""}`}
+                    >
+                      {s.label.length}/25
+                    </span>
+                  </div>
+                </label>
+                <label>
+                  <span>{t("Подсказка или объём", "Detail or amount")}</span>
+                  <div className="input-with-counter">
+                    <input
+                      className="note-input"
+                      aria-label={`${t("Подробности", "Details")} ${i + 1}`}
+                      placeholder={t(
+                        "Например, 20 минут каждый день",
+                        "For example, 20 minutes every day",
+                      )}
+                      maxLength={25}
+                      value={s.note}
+                      onChange={(e) => update(s.id, "note", e.target.value)}
+                    />
+                    <span
+                      className={`character-counter ${s.note.length >= 20 ? "near-limit" : ""}`}
+                    >
+                      {s.note.length}/25
+                    </span>
+                  </div>
+                </label>
+              </div>
             </div>
           ))}
         </div>
-        <button
-          type="button"
-          className="text-button"
-          onClick={() =>
-            setSubs((items) => [
-              ...items,
-              {
-                id: crypto.randomUUID(),
-                label: "",
-                note: "",
-                color: COLORS[items.length % COLORS.length],
-                icon: ["walk", "book", "water", "sun", "moon"][
-                  items.length % 5
-                ],
-                createdAt: today,
-              },
-            ])
-          }
-        >
-          <Icon name="plus" size={17} />
-          {t("Добавить подцель", "Add a daily step")}
-        </button>
+        <div className="add-subgoal-row">
+          <button
+            type="button"
+            className="text-button add-subgoal"
+            disabled={subs.length >= MAX_SUBGOALS}
+            onClick={addSubgoal}
+          >
+            <Icon name="plus" size={17} />
+            {subs.length >= MAX_SUBGOALS
+              ? t("Достигнут максимум", "Maximum reached")
+              : t("Добавить подцель", "Add a daily step")}
+          </button>
+          <span>
+            {subs.length}/{MAX_SUBGOALS}
+          </span>
+        </div>
         {error && (
           <p role="alert" className="error">
             {error}
@@ -302,6 +343,11 @@ export default function App() {
   const [period, setPeriod] = useState(30);
   const [storageError, setStorageError] = useState(data.error);
   const [toast, setToast] = useState("");
+  const [syncStatus, setSyncStatus] = useState("checking");
+  const initialData = useRef(data);
+  const syncReady = useRef(false);
+  const syncInitData = useRef("");
+  const syncTimer = useRef(null);
   const t = (ru, en) => (data.lang === "ru" ? ru : en);
   const locale = data.lang === "ru" ? "ru-RU" : "en-GB";
   const format = (day, options) =>
@@ -327,6 +373,94 @@ export default function App() {
       setStorageError(true);
     }
     /* oxlint-enable react/set-state-in-effect */
+  }, [data]);
+  useEffect(() => {
+    let cancelled = false;
+    const initData = getTelegramInitData(window);
+    window.Telegram?.WebApp?.ready();
+    window.Telegram?.WebApp?.expand();
+    if (!initData) {
+      /* oxlint-disable react/set-state-in-effect */
+      setSyncStatus("local");
+      /* oxlint-enable react/set-state-in-effect */
+      return undefined;
+    }
+    syncInitData.current = initData;
+    /* oxlint-disable react/set-state-in-effect */
+    setSyncStatus("syncing");
+    /* oxlint-enable react/set-state-in-effect */
+
+    async function hydrateFromServer() {
+      try {
+        const remote = await loadRemoteState(initData);
+        if (cancelled) return;
+        let current = initialData.current;
+        const localUpdatedAt = current.updatedAt || 0;
+
+        if (remote.state) {
+          const serverState = migrateSingleGoal(remote.state, dateKey());
+          serverState.updatedAt = Math.max(
+            serverState.updatedAt || 0,
+            remote.updatedAt || 0,
+          );
+          if (serverState.updatedAt > localUpdatedAt) {
+            current = serverState;
+            setData(serverState);
+          } else if (localUpdatedAt > serverState.updatedAt) {
+            await saveRemoteState(initData, current);
+          }
+        } else {
+          current = {
+            ...current,
+            updatedAt: current.updatedAt || Date.now(),
+            error: false,
+          };
+          setData(current);
+          await saveRemoteState(initData, current);
+        }
+        if (cancelled) return;
+        syncReady.current = true;
+        setSyncStatus("synced");
+      } catch {
+        if (cancelled) return;
+        syncReady.current = true;
+        setSyncStatus("offline");
+      }
+    }
+
+    hydrateFromServer();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (
+      !syncReady.current ||
+      !syncInitData.current ||
+      !data.updatedAt ||
+      data.error
+    )
+      return undefined;
+    clearTimeout(syncTimer.current);
+    syncTimer.current = setTimeout(async () => {
+      setSyncStatus("syncing");
+      try {
+        const result = await saveRemoteState(syncInitData.current, data);
+        if (
+          result.conflict &&
+          result.state &&
+          (result.updatedAt || 0) > (data.updatedAt || 0)
+        ) {
+          const serverState = migrateSingleGoal(result.state, dateKey());
+          serverState.updatedAt = result.updatedAt;
+          setData(serverState);
+        }
+        setSyncStatus("synced");
+      } catch {
+        setSyncStatus("offline");
+      }
+    }, 700);
+    return () => clearTimeout(syncTimer.current);
   }, [data]);
   useEffect(() => {
     document.documentElement.lang = data.lang;
@@ -355,12 +489,24 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [toast]);
 
+  function changeData(updater) {
+    setData((current) => {
+      const next =
+        typeof updater === "function" ? updater(current) : updater;
+      return {
+        ...next,
+        updatedAt: Date.now(),
+        error: false,
+      };
+    });
+  }
+
   function toggle(id) {
     if (selectedDay > today) return;
     const updated = toggleDay(goal, selectedDay, id);
     if (isDemo) setDemo(updated);
     else
-      setData((d) => ({
+      changeData((d) => ({
         ...d,
         goal: updated,
       }));
@@ -384,7 +530,7 @@ export default function App() {
     }
   }
   function saveGoal(saved) {
-    setData((d) => saveSingleGoal(d, saved));
+    changeData((d) => saveSingleGoal(d, saved));
     setSelectedDay(today);
     setModal(null);
     setView("overview");
@@ -854,10 +1000,22 @@ export default function App() {
                   )
                 : storageError
                   ? t("Изменения не сохранены", "Changes are not saved")
-                  : t(
-                      "Ваш прогресс сохраняется в этом браузере",
-                      "Your progress is saved in this browser",
-                    )}
+                  : syncStatus === "synced"
+                    ? t(
+                        "Синхронизировано с Telegram",
+                        "Synced with Telegram",
+                      )
+                    : syncStatus === "syncing" || syncStatus === "checking"
+                      ? t("Синхронизация…", "Syncing…")
+                      : syncStatus === "offline"
+                        ? t(
+                            "Офлайн · сохранено на устройстве",
+                            "Offline · saved on this device",
+                          )
+                        : t(
+                            "Сохранено на этом устройстве",
+                            "Saved on this device",
+                          )}
             </span>
             <span>
               ONE STEP AT A TIME <Icon name="leaf" size={13} />
@@ -881,7 +1039,7 @@ export default function App() {
               )
             )
               return;
-            setData((d) => ({
+            changeData((d) => ({
               ...d,
               goal: null,
             }));
@@ -904,7 +1062,7 @@ export default function App() {
                 value={data.lang}
                 onChange={(e) => {
                   const lang = e.target.value;
-                  setData((d) => ({ ...d, lang }));
+                  changeData((d) => ({ ...d, lang }));
                   setDemo(demoGoal(today, lang));
                 }}
               >
@@ -916,10 +1074,15 @@ export default function App() {
               <Icon name="leaf" size={25} />
               <h3>{t("Только для вас", "Just for you")}</h3>
               <p>
-                {t(
-                  "Ваша цель и отметки хранятся в этом браузере. Экспортируйте копию, чтобы сохранить свою историю отдельно.",
-                  "Your goal and check-ins are stored in this browser. Export a copy to keep your history safe elsewhere.",
-                )}
+                {syncStatus === "local"
+                  ? t(
+                      "Откройте приложение внутри Telegram, чтобы включить защищённую синхронизацию. Пока данные хранятся только на этом устройстве.",
+                      "Open the app inside Telegram to enable secure sync. For now, data is stored only on this device.",
+                    )
+                  : t(
+                      "Цель и статистика привязаны к вашему Telegram ID, сохраняются на сервере и остаются доступны на других устройствах.",
+                      "Your goal and statistics are linked to your Telegram ID, stored on the server, and available on your other devices.",
+                    )}
               </p>
             </div>
             {data.archivedGoals?.length > 0 && (

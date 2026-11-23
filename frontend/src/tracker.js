@@ -152,6 +152,10 @@ export function migrateSingleGoal(stored, today) {
     goal,
     archivedGoals,
     lang: stored.lang === "en" ? "en" : "ru",
+    updatedAt:
+      Number.isSafeInteger(stored.updatedAt) && stored.updatedAt > 0
+        ? stored.updatedAt
+        : 0,
     error: false,
   };
 }

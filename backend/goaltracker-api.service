@@ -1,0 +1,21 @@
+[Unit]
+Description=Circle Up Telegram Mini App API
+After=network.target
+
+[Service]
+Type=simple
+User=goaltracker
+Group=goaltracker
+WorkingDirectory=/opt/goaltracker-api
+EnvironmentFile=/etc/goaltracker.env
+ExecStart=/usr/bin/python3 /opt/goaltracker-api/server.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/goaltracker
+
+[Install]
+WantedBy=multi-user.target

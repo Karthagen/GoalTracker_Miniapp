@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "test": "node --test src/tracker.test.js",
+    "test": "node --test src/tracker.test.js src/sync.test.js",
     "preview": "vite preview"
   },
   "dependencies": {

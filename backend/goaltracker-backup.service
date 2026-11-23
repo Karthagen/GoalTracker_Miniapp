@@ -1,0 +1,15 @@
+[Unit]
+Description=Back up Circle Up SQLite database
+After=goaltracker-api.service
+
+[Service]
+Type=oneshot
+User=goaltracker
+Group=goaltracker
+EnvironmentFile=/etc/goaltracker.env
+ExecStart=/usr/bin/python3 /opt/goaltracker-api/backup.py
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/goaltracker /var/backups/goaltracker
