@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import confetti from "canvas-confetti";
 import Icon from "./icons";
+import { goalIconOptions } from "./goalIcons";
 import GoalOrbit from "./components/GoalOrbit";
+import SupportForm from "./components/SupportForm";
 import {
   STORAGE_KEY,
   COLORS,
@@ -71,8 +73,50 @@ function Dialog({ title, close, children, wide = false }) {
   );
 }
 
+function IconPicker({ value, onSelect, onClose, t }) {
+  return (
+    <div
+      className="goal-icon-picker"
+      role="group"
+      aria-label={t("Выбор иконки", "Choose an icon")}
+    >
+      <div className="goal-icon-picker-heading">
+        <div>
+          <strong>{t("Выберите иконку", "Choose an icon")}</strong>
+          <span>{t("Она появится на круге", "It will appear on the circle")}</span>
+        </div>
+        <button
+          type="button"
+          className="icon-button"
+          onClick={onClose}
+          aria-label={t("Закрыть выбор иконки", "Close icon picker")}
+        >
+          <Icon name="close" size={16} />
+        </button>
+      </div>
+      <div className="goal-icon-grid">
+        {goalIconOptions.map(([name, ru, en]) => (
+          <button
+            type="button"
+            key={name}
+            className={value === name ? "selected" : ""}
+            aria-pressed={value === name}
+            aria-label={t(ru, en)}
+            title={t(ru, en)}
+            onClick={() => onSelect(name)}
+          >
+            <Icon name={name} size={21} />
+            <span>{t(ru, en)}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
   const [name, setName] = useState(goal?.mainGoal || "");
+  const [mainIcon, setMainIcon] = useState(goal?.icon || "target");
   const [description, setDescription] = useState(goal?.description || "");
   const [subs, setSubs] = useState(() =>
     goal
@@ -90,6 +134,7 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
         })),
   );
   const [error, setError] = useState("");
+  const [openIconPicker, setOpenIconPicker] = useState(null);
   const update = (id, field, value) =>
     setSubs((items) =>
       items.map((s) => (s.id === id ? { ...s, [field]: value } : s)),
@@ -145,6 +190,7 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
     onSave({
       id: goal?.id || crypto.randomUUID(),
       mainGoal: name.trim(),
+      icon: mainIcon,
       description: description.trim(),
       createdAt: goal?.createdAt || today,
       history: goal?.history || {},
@@ -162,10 +208,43 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
       wide
     >
       <form onSubmit={submit} className="goal-form">
-        <label className="form-field">
-          {t("Моя главная цель", "My main goal")}
+        <div className="form-field main-goal-field">
+          <div className="field-label-row">
+            <label htmlFor="main-goal-name">
+              {t("Моя главная цель", "My main goal")}
+            </label>
+            <button
+              type="button"
+              className={`goal-icon-trigger ${openIconPicker === "main" ? "active" : ""}`}
+              onClick={() =>
+                setOpenIconPicker((current) =>
+                  current === "main" ? null : "main",
+                )
+              }
+              aria-label={t(
+                "Изменить иконку главной цели",
+                "Change main goal icon",
+              )}
+              aria-expanded={openIconPicker === "main"}
+            >
+              <Icon name={mainIcon} size={19} />
+              <span>{t("Иконка", "Icon")}</span>
+            </button>
+          </div>
+          {openIconPicker === "main" && (
+            <IconPicker
+              value={mainIcon}
+              t={t}
+              onClose={() => setOpenIconPicker(null)}
+              onSelect={(icon) => {
+                setMainIcon(icon);
+                setOpenIconPicker(null);
+              }}
+            />
+          )}
           <div className="input-with-counter">
             <input
+              id="main-goal-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               maxLength={40}
@@ -181,7 +260,7 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
               {name.length}/40
             </span>
           </div>
-        </label>
+        </div>
         <label className="form-field">
           {t("Почему это важно для меня", "Why this matters to me")}
           <div className="input-with-counter textarea-counter">
@@ -230,6 +309,19 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
                       onChange={(e) => update(s.id, "color", e.target.value)}
                     />
                   </label>
+                  <button
+                    type="button"
+                    className={`goal-icon-trigger subgoal-icon-trigger ${openIconPicker === s.id ? "active" : ""}`}
+                    onClick={() =>
+                      setOpenIconPicker((current) =>
+                        current === s.id ? null : s.id,
+                      )
+                    }
+                    aria-label={`${t("Изменить иконку", "Change icon")} ${i + 1}`}
+                    aria-expanded={openIconPicker === s.id}
+                  >
+                    <Icon name={s.icon} size={19} />
+                  </button>
                   <strong>
                     {t(`Ежедневный шаг ${i + 1}`, `Daily step ${i + 1}`)}
                   </strong>
@@ -246,6 +338,17 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
                   <Icon name="close" size={17} />
                 </button>
               </div>
+              {openIconPicker === s.id && (
+                <IconPicker
+                  value={s.icon}
+                  t={t}
+                  onClose={() => setOpenIconPicker(null)}
+                  onSelect={(icon) => {
+                    update(s.id, "icon", icon);
+                    setOpenIconPicker(null);
+                  }}
+                />
+              )}
               <div className="sub-form-fields">
                 <label>
                   <span>{t("Что сделать", "What to do")}</span>
@@ -1070,6 +1173,7 @@ export default function App() {
                 <option value="en">English</option>
               </select>
             </label>
+            <SupportForm t={t} />
             <div className="privacy-note">
               <Icon name="leaf" size={25} />
               <h3>{t("Только для вас", "Just for you")}</h3>

@@ -163,6 +163,16 @@
   align-items: center;
   max-width: 78%;
 }
+.center-goal-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 5px;
+  border-radius: 50%;
+  background: #edf3e7;
+  color: #7a9365;
+}
 .center-eyebrow {
   color: #8c997b;
   font-size: 8px;
@@ -553,7 +563,16 @@
   .center-eyebrow {
     font-size: 5.5px;
     letter-spacing: 0.8px;
-    margin-bottom: 6px;
+    margin-bottom: 4px;
+  }
+  .center-goal-icon {
+    width: 25px;
+    height: 25px;
+    margin-bottom: 3px;
+  }
+  .center-goal-icon svg {
+    width: 16px;
+    height: 16px;
   }
   .center-copy h2 {
     font-size: clamp(13px, 3.7vw, 15px);
@@ -690,6 +709,14 @@
   }
   .orbit-stage.expanded .center-eyebrow {
     font-size: 8px;
+  }
+  .orbit-stage.expanded .center-goal-icon {
+    width: 32px;
+    height: 32px;
+  }
+  .orbit-stage.expanded .center-goal-icon svg {
+    width: 21px;
+    height: 21px;
   }
   .orbit-stage.expanded .center-percentage {
     font-size: 30px;

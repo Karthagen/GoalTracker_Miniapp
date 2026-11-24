@@ -52,7 +52,23 @@ test("saving never creates a second active goal and preserves the daily history"
   assert.equal(saved.goal.mainGoal, "Edited");
   assert.equal(saved.goal.createdAt, "2026-11-01");
   assert.deepEqual(saved.goal.history, existing.history);
+  assert.equal(saved.goal.icon, undefined);
   assert.equal(Object.hasOwn(saved, "goals"), false);
+});
+
+test("goal and daily step icons survive normalization", () => {
+  const goal = normalizeGoal(
+    {
+      id: "icons",
+      mainGoal: "Create",
+      icon: "palette",
+      subgoals: [{ id: "step", label: "Draw", icon: "camera" }],
+    },
+    today,
+  );
+  assert.equal(goal.icon, "palette");
+  assert.equal(goal.subgoals[0].icon, "camera");
+  assert.equal(normalizeGoal({ subgoals: [] }, today).icon, "target");
 });
 
 test("an empty single-goal state does not restore an archived goal", () => {

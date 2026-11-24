@@ -33,3 +33,6 @@ user and writes the SQLite database to `/var/lib/goaltracker/state.db`.
 
 Nginx proxies `/goaltracker/api/` to `127.0.0.1:8787`; the public health check is
 `/goaltracker/api/health`.
+### Обращения к разработчикам
+
+В настройках Mini App пользователь Telegram может отправить до пяти сообщений за календарный месяц по UTC. Баг-репорты и обычные обращения делят один лимит. Разработчик с доступом к серверу может прочитать последние 100 обращений командой `sudo -u goaltracker python3 /opt/goaltracker-api/support_inbox.py`. В каждой записи есть номер обращения, время, Telegram ID отправителя, тема и текст.

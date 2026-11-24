@@ -1336,6 +1336,7 @@ h1 > span {
   height: 40px;
 }
 .goal-form > label,
+.goal-form > .form-field,
 .settings-body > label {
   display: flex;
   flex-direction: column;
@@ -1343,6 +1344,117 @@ h1 > span {
   font-size: 11px;
   color: #728462;
   margin-bottom: 19px;
+}
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.field-label-row > label {
+  color: #728462;
+}
+.goal-icon-trigger {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid #dbe4d1;
+  border-radius: 9px;
+  background: #f4f7ef;
+  color: #657b52;
+  font-size: 11px;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    transform 0.2s;
+}
+.goal-icon-trigger:hover,
+.goal-icon-trigger.active {
+  border-color: #91a77a;
+  background: #eaf1e2;
+}
+.goal-icon-trigger:active {
+  transform: scale(0.96);
+}
+.subgoal-icon-trigger {
+  flex: 0 0 36px;
+  width: 36px;
+  padding: 0;
+  border-radius: 50%;
+}
+.goal-icon-picker {
+  padding: 13px;
+  border: 1px solid #dce5d2;
+  border-radius: 13px;
+  background: #fff;
+  box-shadow: 0 12px 30px #3b4e2c10;
+}
+.goal-icon-picker-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.goal-icon-picker-heading > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.goal-icon-picker-heading strong {
+  color: #4f6241;
+  font-size: 13px;
+  font-weight: 600;
+}
+.goal-icon-picker-heading span {
+  color: #93a087;
+  font-size: 10px;
+}
+.goal-icon-picker-heading .icon-button {
+  width: 34px;
+  height: 34px;
+}
+.goal-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 7px;
+}
+.goal-icon-grid > button {
+  min-width: 0;
+  min-height: 57px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 3px;
+  border: 1px solid #e4eadc;
+  border-radius: 9px;
+  background: #f9faf6;
+  color: #718363;
+}
+.goal-icon-grid > button:hover {
+  border-color: #a6b795;
+  background: #f0f5ea;
+}
+.goal-icon-grid > button.selected {
+  border-color: #7f9868;
+  background: #e8f0df;
+  color: #486039;
+  box-shadow: inset 0 0 0 1px #7f9868;
+}
+.goal-icon-grid > button span {
+  width: 100%;
+  overflow: hidden;
+  color: inherit;
+  font-size: 8px;
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .input-with-counter {
   position: relative;
@@ -2494,12 +2606,54 @@ textarea::placeholder {
     padding: 22px 16px 0;
   }
   .goal-form > label,
+  .goal-form > .form-field,
   .settings-body > label {
     gap: 9px;
     margin-bottom: 20px;
     color: #596d48;
     font-size: 14px;
     font-weight: 600;
+  }
+  .field-label-row > label {
+    color: #596d48;
+  }
+  .goal-icon-trigger {
+    min-height: 44px;
+    border-radius: 11px;
+    font-size: 13px;
+  }
+  .subgoal-icon-trigger {
+    flex-basis: 40px;
+    width: 40px;
+    min-height: 40px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  .goal-icon-picker {
+    margin: 1px 0 4px;
+    padding: 12px;
+    border-radius: 14px;
+  }
+  .goal-icon-picker-heading strong {
+    font-size: 14px;
+  }
+  .goal-icon-picker-heading span {
+    font-size: 12px;
+  }
+  .goal-icon-picker-heading .icon-button {
+    width: 40px;
+    height: 40px;
+  }
+  .goal-icon-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 7px;
+  }
+  .goal-icon-grid > button {
+    min-height: 58px;
+    border-radius: 10px;
+  }
+  .goal-icon-grid > button span {
+    font-size: 9px;
   }
   .goal-form input,
   .goal-form textarea,
@@ -2718,3 +2872,13 @@ textarea::placeholder {
 .delete-goal:hover {
   color: #813c26;
 }
+.support-form {
+  display: grid;
+  gap: .8rem;
+  padding-block: 1rem;
+  border-block: 1px solid #92a08055;
+}
+.support-form h3, .support-form p { margin: 0; }
+.support-form textarea { box-sizing: border-box; width: 100%; resize: vertical; min-height: 5rem; font: inherit; padding: .75rem; border-radius: .75rem; border: 1px solid #92a08088; }
+.support-form button:disabled { opacity: .55; }
+.support-form [role="status"]:empty { display: none; }

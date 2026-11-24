@@ -9,6 +9,8 @@ import json
 import os
 import sqlite3
 import time
+import threading
+from urllib.request import Request, urlopen
 from contextlib import closing
 from dataclasses import dataclass
 from http import HTTPStatus
@@ -16,9 +18,15 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qsl
+from uuid import UUID
 
 
 MAX_BODY_BYTES = 256 * 1024
+MONTHLY_LIMIT = 5
+
+
+class QuotaReached(Exception):
+    pass
 
 
 class AuthError(ValueError):
@@ -102,7 +110,63 @@ class StateStore:
                 )
                 """
             )
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS support_messages (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    request_id TEXT NOT NULL,
+                    kind TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(user_id, request_id)
+                )
+            """)
+            connection.execute("CREATE INDEX IF NOT EXISTS support_by_month ON support_messages(user_id, created_at)")
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS support_deliveries (
+                    ticket INTEGER PRIMARY KEY,
+                    telegram_message_id INTEGER NOT NULL
+                )
+            """)
             connection.commit()
+
+    @staticmethod
+    def _remaining(connection, user_id):
+        used = connection.execute("""
+            SELECT count(*) FROM support_messages
+            WHERE user_id = ? AND created_at >= datetime('now', 'start of month')
+        """, (user_id,)).fetchone()[0]
+        return max(0, MONTHLY_LIMIT - used)
+
+    def remaining(self, user_id):
+        with closing(self._connect()) as connection:
+            return self._remaining(connection, user_id)
+
+    def submit(self, user_id, payload):
+        kind = payload.get("kind")
+        message = payload.get("message")
+        request_id = str(UUID(str(payload.get("requestId"))))
+        if kind not in ("bug", "contact") or not isinstance(message, str) or not 1 <= len(message.strip()) <= 2000:
+            raise ValueError("Invalid feedback")
+        with closing(self._connect()) as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            remaining = self._remaining(connection, user_id)
+            existing = connection.execute(
+                "SELECT id, kind, message FROM support_messages WHERE user_id=? AND request_id=?",
+                (user_id, request_id),
+            ).fetchone()
+            if existing:
+                if (existing["kind"], existing["message"]) != (kind, message.strip()):
+                    raise ValueError("Request already used")
+                return {"ticket": existing["id"], "remaining": remaining}
+            if not remaining:
+                raise QuotaReached()
+            ticket = connection.execute(
+                "INSERT INTO support_messages(user_id, request_id, kind, message) VALUES (?, ?, ?, ?)",
+                (user_id, request_id, kind, message.strip()),
+            ).lastrowid
+            connection.commit()
+            return {"ticket": ticket, "remaining": remaining - 1}
 
     def get(self, user_id: int) -> dict[str, Any] | None:
         with closing(self._connect()) as connection:
@@ -152,6 +216,32 @@ class StateStore:
         return saved, current
 
 
+def deliver_notifications(store, token, chat_id):
+    while True:
+        try:
+            with closing(store._connect()) as db:
+                row = db.execute("""
+                    SELECT s.id, s.kind, s.message FROM support_messages AS s
+                    LEFT JOIN support_deliveries AS d ON d.ticket=s.id
+                    WHERE d.ticket IS NULL ORDER BY s.id LIMIT 1
+                """).fetchone()
+                if row is not None:
+                    topic = "Ошибка" if row["kind"] == "bug" else "Обращение"
+                    text = f"{topic} №{row['id']} · Circle Up\n\n{row['message']}"
+                    req = Request(f"https://api.telegram.org/bot{token}/sendMessage",
+                                  data=json.dumps({"chat_id": chat_id, "text": text,
+                                                   "link_preview_options": {"is_disabled": True}}).encode(),
+                                  headers={"Content-Type": "application/json"})
+                    with urlopen(req, timeout=10) as response:
+                        message_id = json.load(response)["result"]["message_id"]
+                    db.execute("INSERT INTO support_deliveries VALUES (?, ?)", (row["id"], message_id))
+                    db.commit()
+            time.sleep(2 if row is not None else 5)
+        except Exception as exc:
+            print(f"Support notification deferred: {type(exc).__name__}", flush=True)
+            time.sleep(60)
+
+
 class ApiHandler(BaseHTTPRequestHandler):
     server_version = "CircleUpAPI/1"
 
@@ -196,16 +286,37 @@ class ApiHandler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._send_json(HTTPStatus.OK, {"status": "ok"})
             return
-        if self.path != "/state":
+        if self.path not in ("/state", "/support"):
             self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
             return
         try:
             user = self._authenticate()
+            if self.path == "/support":
+                self._send_json(HTTPStatus.OK, {"remaining": self.config["store"].remaining(user.id)})
+                return
             record = self.config["store"].get(user.id)
         except AuthError:
             self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
             return
         self._send_json(HTTPStatus.OK, record or {"state": None})
+
+    def do_POST(self) -> None:
+        if self.path != "/support":
+            self._send_json(HTTPStatus.NOT_FOUND, {"error": "not_found"})
+            return
+        try:
+            user = self._authenticate()
+            receipt = self.config["store"].submit(user.id, self._read_json())
+        except AuthError:
+            self._send_json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
+            return
+        except QuotaReached:
+            self._send_json(HTTPStatus.TOO_MANY_REQUESTS, {"remaining": 0})
+            return
+        except ValueError:
+            self._send_json(HTTPStatus.BAD_REQUEST, {"error": "invalid_request"})
+            return
+        self._send_json(HTTPStatus.OK, receipt)
 
     def do_PUT(self) -> None:
         if self.path != "/state":
@@ -251,6 +362,10 @@ def main() -> None:
         "max_auth_age": max_auth_age,
         "store": StateStore(db_path),
     }
+    chat_id = os.environ.get("GOALTRACKER_SUPPORT_CHAT_ID", "").strip()
+    if chat_id:
+        threading.Thread(target=deliver_notifications,
+                         args=(server.config["store"], bot_token, chat_id), daemon=True).start()
     print(f"Circle Up API listening on {host}:{port}", flush=True)
     server.serve_forever()
 

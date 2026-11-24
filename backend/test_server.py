@@ -7,7 +7,10 @@ import unittest
 from pathlib import Path
 from urllib.parse import urlencode
 
-from server import AuthError, StateStore, verify_telegram_init_data
+from server import AuthError, QuotaReached, StateStore, verify_telegram_init_data
+from uuid import uuid4
+from concurrent.futures import ThreadPoolExecutor
+import sqlite3
 
 
 def signed_init_data(token: str, user_id: int, auth_date: int) -> str:
@@ -44,6 +47,29 @@ class AuthTests(unittest.TestCase):
 
 
 class StoreTests(unittest.TestCase):
+    def test_shared_support_quota_and_retries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "state.db"
+            store = StateStore(path)
+            first = {"kind": "bug", "message": "test", "requestId": str(uuid4())}
+            receipt = store.submit(7, first)
+            self.assertEqual(store.submit(7, first), receipt)
+            def send(i):
+                try:
+                    store.submit(7, {**first, "kind": "contact", "requestId": str(uuid4())})
+                    return True
+                except QuotaReached:
+                    return False
+            with ThreadPoolExecutor(max_workers=8) as pool:
+                self.assertEqual(sum(pool.map(send, range(8))), 4)
+            self.assertEqual(store.remaining(7), 0)
+            self.assertEqual(store.remaining(8), 5)
+            self.assertEqual(store.submit(7, first)["ticket"], receipt["ticket"])
+            with sqlite3.connect(path) as db:
+                db.execute("UPDATE support_messages SET created_at=datetime('now','start of month','-1 second')")
+            db.close()
+            self.assertEqual(store.remaining(7), 5)
+
     def test_latest_state_wins_and_stale_write_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             store = StateStore(Path(directory) / "state.db")
