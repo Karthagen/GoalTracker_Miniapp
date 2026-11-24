@@ -116,7 +116,6 @@ function IconPicker({ value, onSelect, onClose, t }) {
 
 function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
   const [name, setName] = useState(goal?.mainGoal || "");
-  const [mainIcon, setMainIcon] = useState(goal?.icon || "target");
   const [description, setDescription] = useState(goal?.description || "");
   const [subs, setSubs] = useState(() =>
     goal
@@ -190,7 +189,6 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
     onSave({
       id: goal?.id || crypto.randomUUID(),
       mainGoal: name.trim(),
-      icon: mainIcon,
       description: description.trim(),
       createdAt: goal?.createdAt || today,
       history: goal?.history || {},
@@ -208,40 +206,8 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
       wide
     >
       <form onSubmit={submit} className="goal-form">
-        <div className="form-field main-goal-field">
-          <div className="field-label-row">
-            <label htmlFor="main-goal-name">
-              {t("Моя главная цель", "My main goal")}
-            </label>
-            <button
-              type="button"
-              className={`goal-icon-trigger ${openIconPicker === "main" ? "active" : ""}`}
-              onClick={() =>
-                setOpenIconPicker((current) =>
-                  current === "main" ? null : "main",
-                )
-              }
-              aria-label={t(
-                "Изменить иконку главной цели",
-                "Change main goal icon",
-              )}
-              aria-expanded={openIconPicker === "main"}
-            >
-              <Icon name={mainIcon} size={19} />
-              <span>{t("Иконка", "Icon")}</span>
-            </button>
-          </div>
-          {openIconPicker === "main" && (
-            <IconPicker
-              value={mainIcon}
-              t={t}
-              onClose={() => setOpenIconPicker(null)}
-              onSelect={(icon) => {
-                setMainIcon(icon);
-                setOpenIconPicker(null);
-              }}
-            />
-          )}
+        <label className="form-field">
+          {t("Моя главная цель", "My main goal")}
           <div className="input-with-counter">
             <input
               id="main-goal-name"
@@ -260,7 +226,7 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
               {name.length}/40
             </span>
           </div>
-        </div>
+        </label>
         <label className="form-field">
           {t("Почему это важно для меня", "Why this matters to me")}
           <div className="input-with-counter textarea-counter">

@@ -119,9 +119,6 @@ export default function GoalOrbit({ goal, day, today, onToggle, t }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
             >
-              <span className="center-goal-icon">
-                <Icon name={goal.icon || "target"} size={22} />
-              </span>
               <span className="center-eyebrow">
                 {t("ГЛАВНАЯ ЦЕЛЬ", "MAIN GOAL")}
               </span>

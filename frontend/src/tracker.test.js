@@ -56,19 +56,21 @@ test("saving never creates a second active goal and preserves the daily history"
   assert.equal(Object.hasOwn(saved, "goals"), false);
 });
 
-test("goal and daily step icons survive normalization", () => {
+test("only daily steps have independently selected icons", () => {
   const goal = normalizeGoal(
     {
       id: "icons",
       mainGoal: "Create",
       icon: "palette",
-      subgoals: [{ id: "step", label: "Draw", icon: "camera" }],
+      subgoals: [
+        { id: "step", label: "Draw", icon: "camera" },
+        { id: "run", label: "Run", icon: "walk" },
+      ],
     },
     today,
   );
-  assert.equal(goal.icon, "palette");
-  assert.equal(goal.subgoals[0].icon, "camera");
-  assert.equal(normalizeGoal({ subgoals: [] }, today).icon, "target");
+  assert.equal(goal.icon, undefined);
+  assert.deepEqual(goal.subgoals.map((step) => step.icon), ["camera", "walk"]);
 });
 
 test("an empty single-goal state does not restore an archived goal", () => {

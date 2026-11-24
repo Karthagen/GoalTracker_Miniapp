@@ -107,7 +107,6 @@ export function normalizeGoal(raw, today) {
   return {
     id: String(raw.id ?? crypto.randomUUID()),
     mainGoal: raw.mainGoal || "Моя цель",
-    icon: raw.icon || "target",
     description: raw.description || "",
     createdAt,
     subgoals,
@@ -225,7 +224,6 @@ export function demoGoal(today, lang = "ru") {
   return {
     id: "demo",
     mainGoal: ru ? "Стать лучшей версией себя" : "Become my best self",
-    icon: "spark",
     description: ru
       ? "Больше энергии, осознанности и заботы о себе. Каждый день."
       : "More energy, intention, and self-care. Every single day.",

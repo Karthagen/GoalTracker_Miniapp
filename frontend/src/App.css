@@ -1345,15 +1345,6 @@ h1 > span {
   color: #728462;
   margin-bottom: 19px;
 }
-.field-label-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.field-label-row > label {
-  color: #728462;
-}
 .goal-icon-trigger {
   min-height: 36px;
   display: inline-flex;
@@ -2613,9 +2604,6 @@ textarea::placeholder {
     color: #596d48;
     font-size: 14px;
     font-weight: 600;
-  }
-  .field-label-row > label {
-    color: #596d48;
   }
   .goal-icon-trigger {
     min-height: 44px;
