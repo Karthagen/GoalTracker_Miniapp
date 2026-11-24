@@ -4,6 +4,7 @@ import Icon from "./icons";
 import { goalIconOptions } from "./goalIcons";
 import GoalOrbit from "./components/GoalOrbit";
 import SupportForm from "./components/SupportForm";
+import StepColorPicker from "./components/StepColorPicker";
 import {
   STORAGE_KEY,
   COLORS,
@@ -261,22 +262,9 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
             <div className="sub-form" key={s.id}>
               <div className="sub-form-heading">
                 <div className="sub-form-title">
-                  <label
-                    className="color-input"
-                    title={t("Цвет подцели", "Step color")}
-                  >
-                    <span style={{ background: s.color }}>
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <input
-                      type="color"
-                      aria-label={`${t("Цвет подцели", "Step color")} ${i + 1}`}
-                      value={s.color}
-                      onChange={(e) => update(s.id, "color", e.target.value)}
-                    />
-                  </label>
                   <button
                     type="button"
+                    style={{ "--step-color": s.color }}
                     className={`goal-icon-trigger subgoal-icon-trigger ${openIconPicker === s.id ? "active" : ""}`}
                     onClick={() =>
                       setOpenIconPicker((current) =>
@@ -358,6 +346,7 @@ function GoalForm({ goal, today, onSave, onClose, onDelete, t }) {
                   </div>
                 </label>
               </div>
+              <StepColorPicker color={s.color} onChange={color => update(s.id, "color", color)} t={t} />
             </div>
           ))}
         </div>
